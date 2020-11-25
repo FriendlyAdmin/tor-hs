@@ -1,0 +1,27 @@
+version: "3.8"
+
+#
+# Base Docker Compose Onionbalance configuration to serve as a detached load balancer for a hidden service.
+# Also provides additional security benefit by separating production.
+# NOTE: The image is available through Docker Hub or can be built locally with the help of make.
+#
+
+services:
+    
+    onionbalance:
+        # Built using ./onionbalance/Dockerfile from this repo,
+        # based on friendlyadmin/tor image.
+        image: friendlyadmin/onionbalance:0.2.0-0.4.4.6
+        read_only: true
+        volumes:
+            # Frontend .onion keys, i.e. the ones corresponding to the .onion address your clients will actually use.
+            - ./hs_ed25519_secret_key:/var/lib/hs_data/hs_ed25519_secret_key:ro
+            - ./hs_ed25519_public_key:/var/lib/hs_data/hs_ed25519_public_key:ro
+            # Basic Onionbalance config file. Make sure to put your backend .onion address into it.
+            - ./onionbalance.config.yaml:/onionbalance/config.yaml:ro
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "20m"
+                max-file: "1"
+        restart: always
