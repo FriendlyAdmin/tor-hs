@@ -1,0 +1,68 @@
+version: "3.8"
+
+#
+# This docker-compose is designed to easily run a Tor hidden service
+# on a single production server using docker-compose utility.
+# NOTE: Images are available through Docker Hub or can be built locally with the help of make.
+#
+
+services:
+    
+    # Tor client that will serve our hidden service.
+    tor:
+        # Custom-built Tor image.
+        # See the corresponding repo for info.
+        image: friendlyadmin/tor:0.4.4.6
+        # Tor (or anything else for that matter) won't be able to write anything inside the container,
+        # except in excplicitly declared volumes.
+        read_only: true
+        # The command will utilize Dockerize script to wait for nginx to start during the first startup,
+        # otherwise Tor will fail to start immidiately.
+        command: [
+            "dockerize", "-wait", "http://nginx:8181", "-timeout", "60s", "--",
+            "tor", "-f", "/etc/tor/torrc"
+        ]
+        volumes:
+            # Config for Tor
+            - ./tor/torrc:/etc/tor/torrc:ro
+            # Special file with a single directive for Tor. Make sure to put your front-end .onion address in it.
+            - ./tor/ob_config:/var/lib/hs_data/ob_config:ro
+            # Backend .onion secret key.
+            - ./tor/hs_ed25519_secret_key:/var/lib/hs_data/hs_ed25519_secret_key
+            # Frontend .onion secret key.
+            - ./tor/hs_ed25519_public_key:/var/lib/hs_data/hs_ed25519_public_key
+        networks:
+            # Tor needs access to the Internet (obviously) and to the other services as well.
+            - frontend
+            - backend
+        restart: always
+
+    # Web server that will actually handle incoming requests.
+    nginx:
+        # Slightly customized official Nginx image based on Alpine Linux.
+        # See the corresponding repo for info.
+        image: friendlyadmin/nginx:1.19-alpine
+        read_only: true
+        volumes:
+            # Config file
+            - ./nginx/static.conf:/etc/nginx/server.conf:ro
+            # Public folder of your website.
+            - ./public:/var/www/public:ro
+        # This part will prevent nginx from ever reaching to the Internet on its own.
+        networks:
+            - backend
+        restart: always
+
+
+
+networks:
+    # Network for access to the internet.
+    frontend:
+        internal: false
+    # Network for backend services to communicate.
+    backend:
+        # Cut the internet access for this network.
+        internal: true
+        # Will allow to manually add containers/services to this network later,
+        # may be handy to debug stuff.
+        attachable: true
