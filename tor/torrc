@@ -1,0 +1,66 @@
+## Production Tor Hidden Service config file.
+## See https://torproject.org/docs/tor-manual.html for more details.
+
+## Hidden service directory
+## Should be attached to Docker volume for Docker setup.
+HiddenServiceDir /var/lib/hs_data
+
+## Tor will redirect requests to this specified address and port.
+## All requests received at the port 80 will be redirected to nginx:8080, Docker will resolve the hostname.
+HiddenServicePort 80 nginx:8080
+
+## Explicitly set this Tor instance to publish the hidden service.
+## Setting this to 0 is only useful when using a separate Tor controller app or onionbalance.
+PublishHidServDescriptors 1
+
+## Explicitly set hidden service version to the most recent one, i.e. - 3.
+HiddenServiceVersion 3
+
+## Explicitly tell Tor to close connections with unrecognised ports.
+## Mostly a mild inconvenience for port scanners.
+HiddenServiceAllowUnknownPorts 0
+
+## Number of simultaneous connections allowed per rendezvous circuit (i.e. per user), 0 - unlimited, by default.
+## 100 is already way overkill for most services.
+## Unlimited by default, which opens your node for easy DoS attack.
+## Different values may be useful for DDoS protection.
+## NOTE: May require tweaking.
+HiddenServiceMaxStreams 100
+
+## Setting this to 1 will tell Tor to torn down rendezvous circuit that exceeded HiddenServiceMaxStreams.
+## 0 by default, which means that connection attempts exceeding HiddenServiceMaxStreams will be silently ignored.
+## Setting this to 1 may be useful for DDoS protection, at the same time it may annoy your clients,
+## if they are making more that HiddenServiceMaxStreams connections while legitimately using your service.
+## NOTE: May require tweaking.
+HiddenServiceMaxStreamsCloseCircuit 0
+
+## Number of introduction points, 3 by default.
+## 10 is maximum for v2 hidden service, 20 is maximum for v3 hidden service.
+## One of the ways to scale your hidden service,
+## since popular once may overload their introduction points, if there aren't enough of them.
+## NOTE: When using OnionBalance - Vanguards developer advices against using too many of these,
+## since it will make it possible to determine that the service is in fact using OnionBalance.
+## On the other hand - this may not matter at all, since any decently running hidden services
+## surely uses Onionbalance.
+## See for advices: https://github.com/mikeperry-tor/vanguards/blob/master/README_SECURITY.md
+## NOTE: May require tweaking.
+HiddenServiceNumIntroductionPoints 3
+
+## Explicitly tell Tor not to use experimental non-anonymous direct connections.
+## Even when set to 1 clients will still use anonymous circuits and be protected,
+## server will be mostly unprotected, but faster for clients.
+## WARNING: Setting to 1 will make you, as a hidden service operator, non-anonymous!
+HiddenServiceSingleHopMode 0
+HiddenServiceNonAnonymousMode 0
+
+
+
+### Onionbalance-related directives ###
+
+## Tell this Tor instance to behave as an Onionbalance backend node.
+HiddenServiceOnionBalanceInstance 1
+
+## NOTE: Tor will expect to find a file "ob_config" under HiddenServiceDir with a single line like this (and nothing else):
+## MasterOnionAddress <frontend_onion_address>
+## This line will tell Tor to accept connections intended for the hidden service with that address,
+## which should be an actual front-end .onion address of this hidden service.
